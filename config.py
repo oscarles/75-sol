@@ -77,6 +77,17 @@ DEV_BUY_FAST_PATH = os.environ.get(
     "DEV_BUY_FAST_PATH", "true"
 ).strip().lower() in ("1", "true", "yes", "on")
 
+# ── Blague : ping + spam sur l'alerte pour réveiller les distraits ─────────
+# JOKE_PING_USER_ID = ID Discord numérique du pote (dev mode → clic droit →
+# « Copier l'identifiant »). Renseigné → vrai ping (notif + son). Vide → le
+# texte « @pilo0. » s'affiche sans notifier.
+JOKE_PING_ENABLED  = os.environ.get("JOKE_PING_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+JOKE_PING_USER_ID  = os.environ.get("JOKE_PING_USER_ID", "").strip()
+JOKE_PING_NAME     = os.environ.get("JOKE_PING_NAME", "@pilo0.").strip()
+# GIF optionnel ajouté sous la ligne « ALERTE » (URL média directe .gif/.mp4,
+# ou lien tenor.com/view/…). Vide = pas de GIF.
+JOKE_GIF_URL       = os.environ.get("JOKE_GIF_URL", "").strip()
+
 # ── Réglages de suivi (pas des conditions) ─────────────────────────────────
 TOKEN_TTL_SEC = float(os.environ.get("TOKEN_TTL_SEC", 60))    # on oublie un coin après X s
 MAX_TRACKED   = int(os.environ.get("MAX_TRACKED", 20000))     # garde-fou mémoire

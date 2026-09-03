@@ -5,11 +5,27 @@ import datetime as _dt
 
 import aiohttp
 
-from config import DISCORD_WEBHOOK_URL, DEV_BUY_MIN_SOL, DEV_BUY_MAX_SOL
+from config import (
+    DISCORD_WEBHOOK_URL, DEV_BUY_MIN_SOL, DEV_BUY_MAX_SOL,
+    JOKE_PING_ENABLED, JOKE_PING_USER_ID, JOKE_PING_NAME, JOKE_GIF_URL,
+)
 
 
 def _short(addr: str) -> str:
     return f"{addr[:4]}…{addr[-4:]}" if len(addr) > 8 else addr
+
+
+def _joke_content(name: str, symbol: str, dev_buy_sol: float) -> str:
+    """Ping + « ALERTE », pour un pote qui rate les notifs.
+
+    `JOKE_GIF_URL` (optionnel) ajoute un GIF sous la ligne s'il est renseigné."""
+    if not JOKE_PING_ENABLED:
+        return ""
+    who = f"<@{JOKE_PING_USER_ID}>" if JOKE_PING_USER_ID else JOKE_PING_NAME
+    content = f"# 🚨 ALERTE {who}"
+    if JOKE_GIF_URL:
+        content += f"\n{JOKE_GIF_URL}"
+    return content
 
 
 async def _post(session: aiohttp.ClientSession, payload: dict, retries: int = 3) -> bool:
@@ -97,5 +113,9 @@ async def send_dev_buy_alert(
     }
 
     payload = {"username": "75 SOL Scanner", "embeds": [embed]}
+    content = _joke_content(name, symbol, dev_buy_sol)
+    if content:
+        payload["content"] = content
+        payload["allowed_mentions"] = {"parse": ["users"]}
     async with aiohttp.ClientSession() as session:
         await _post(session, payload)
