@@ -41,6 +41,8 @@ from config import (
     DEV_BUY_REQUIRE_CREATOR_MATCH,
     DEV_BUY_EPSILON_SOL,
     DEV_BUY_FAST_PATH,
+    DEV_SKIP_IF_MULTI_TOKEN,
+    DEV_MAX_TOKENS_BEFORE_SKIP,
     TOKEN_TTL_SEC,
     MAX_TRACKED,
     EVAL_INTERVAL,
@@ -77,6 +79,7 @@ class Tracked:
 class State:
     def __init__(self) -> None:
         self.tokens: dict[str, Tracked] = {}
+        self.creator_token_count: dict[str, int] = {}
 
     def add(self, t: Tracked) -> None:
         if len(self.tokens) >= MAX_TRACKED:
@@ -170,12 +173,19 @@ async def _handle_ws_message(raw: str, state: State) -> None:
 
     # 1) créations d'abord (le dev-buy peut être dans la même tx)
     for ev in creates:
-        if ev.mint not in state.tokens:
-            state.add(Tracked(
-                mint=ev.mint, creator=ev.creator, name=ev.name or "?",
-                symbol=ev.symbol or "?", created_at=now, create_sig=sig,
-            ))
-            safe_print(f"[+] Création : {ev.name} ({ev.symbol}) | {ev.mint[:10]}… | dev {ev.creator[:6]}…")
+        if ev.mint in state.tokens:
+            continue
+        prior = state.creator_token_count.get(ev.creator, 0)
+        state.creator_token_count[ev.creator] = prior + 1
+        if DEV_SKIP_IF_MULTI_TOKEN and prior >= DEV_MAX_TOKENS_BEFORE_SKIP:
+            safe_print(f"[skip] {ev.name} ({ev.symbol}) | dev {ev.creator[:6]}… "
+                       f"a déjà {prior + 1} tokens — ignoré")
+            continue
+        state.add(Tracked(
+            mint=ev.mint, creator=ev.creator, name=ev.name or "?",
+            symbol=ev.symbol or "?", created_at=now, create_sig=sig,
+        ))
+        safe_print(f"[+] Création : {ev.name} ({ev.symbol}) | {ev.mint[:10]}… | dev {ev.creator[:6]}…")
 
     # 2) puis les achats
     for tr in trades:
@@ -312,6 +322,8 @@ async def main() -> None:
     log(f"    Filtre : dev-buy {DEV_BUY_MIN_SOL:g} – {DEV_BUY_MAX_SOL:g} SOL "
         f"dans les {DEV_BUY_MAX_AGE_SEC:g}s suivant la création")
     log(f"    Achats comptés : {'wallet créateur uniquement' if DEV_BUY_REQUIRE_CREATOR_MATCH else 'premier acheteur (tout wallet)'}")
+    if DEV_SKIP_IF_MULTI_TOKEN:
+        log(f"    Skip serial devs : dev avec > {DEV_MAX_TOKENS_BEFORE_SKIP} token(s) créé(s) → ignoré")
     log(f"    WS : {', '.join(PUBLIC_WS_URLS)}")
     if not DISCORD_WEBHOOK_URL:
         log("[!] DISCORD_WEBHOOK_URL non défini — les alertes ne partiront pas.")

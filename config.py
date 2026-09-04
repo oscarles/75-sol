@@ -77,6 +77,15 @@ DEV_BUY_FAST_PATH = os.environ.get(
     "DEV_BUY_FAST_PATH", "true"
 ).strip().lower() in ("1", "true", "yes", "on")
 
+# Skip serial deployers : si le wallet créateur a déjà créé plus de
+# DEV_MAX_TOKENS_BEFORE_SKIP coin(s) depuis le démarrage du bot, on ignore ses
+# créations suivantes (pas de suivi, pas d'alerte possible). Vise les devs qui
+# spam plusieurs tokens (souvent des rugs en série).
+DEV_SKIP_IF_MULTI_TOKEN = os.environ.get(
+    "DEV_SKIP_IF_MULTI_TOKEN", "true"
+).strip().lower() in ("1", "true", "yes", "on")
+DEV_MAX_TOKENS_BEFORE_SKIP = int(os.environ.get("DEV_MAX_TOKENS_BEFORE_SKIP", 1))
+
 # ── Blague : ping + spam sur l'alerte pour réveiller les distraits ─────────
 # JOKE_PING_USER_ID = ID Discord numérique du pote (dev mode → clic droit →
 # « Copier l'identifiant »). Renseigné → vrai ping (notif + son). Vide → le
