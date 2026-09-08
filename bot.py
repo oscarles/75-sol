@@ -3,7 +3,7 @@
 =================================
 
 Un seul but : repérer, en direct, les nouveaux coins pump.fun où **le dev
-(= le wallet créateur) s'achète lui-même entre 70 et 80 SOL instantanément à la
+(= le wallet créateur) s'achète lui-même entre 71 et 78 SOL instantanément à la
 création**, et envoyer une alerte Discord.
 
 Comment ça marche (aucun crédit RPC, aucune clé API) :
@@ -140,7 +140,7 @@ def _handle_trade(state: State, tr, sig: str, now: float) -> None:
 
     sol = tok.dev_buy_lamports / LAMPORTS_PER_SOL
     if sol > DEV_BUY_MAX_SOL + DEV_BUY_EPSILON_SOL:
-        # le dev a déjà dépassé 80 SOL → ne reviendra jamais dans la fenêtre
+        # le dev a déjà dépassé 78 SOL → ne reviendra jamais dans la fenêtre
         log(f"[✗] {tok.name} ({tok.symbol}) : dev-buy {sol:.2f} SOL > "
             f"{DEV_BUY_MAX_SOL:g} — trop gros, ignoré")
         tok.done = True

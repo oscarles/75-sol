@@ -4,12 +4,12 @@ Bot de **détection seule** (aucun achat). Il écoute en direct les nouvelles
 créations de coins pump.fun et envoie une alerte Discord dès qu'un coin remplit
 **une seule condition** :
 
-> Le **dev** (le wallet qui crée le coin) **s'achète lui-même entre 70 et 80 SOL**,
+> Le **dev** (le wallet qui crée le coin) **s'achète lui-même entre 71 et 78 SOL**,
 > **instantanément** à la création — c.-à-d. dans les 3 secondes qui suivent le
 > `CreateEvent` (dev-buy dans la tx de création, ou juste après).
 
 Si le dev splitte son achat en plusieurs ordres dans cette fenêtre, ils sont
-**additionnés**. Un dev qui achète moins de 70 ou plus de 80 SOL est ignoré.
+**additionnés**. Un dev qui achète moins de 71 ou plus de 78 SOL est ignoré.
 
 ## Comment ça marche
 
@@ -24,7 +24,7 @@ Si le dev splitte son achat en plusieurs ordres dans cette fenêtre, ils sont
 3. **Fast-path** : si le dev-buy est dans la **tx de création** (cas le plus
    courant), on tranche et on alerte **immédiatement** — pas d'attente.
 4. Sinon (dev-buy en tx séparée), on tranche à la fermeture de la fenêtre :
-   total dans `[70 ; 80]` SOL → **alerte Discord**.
+   total dans `[71 ; 78]` SOL → **alerte Discord**.
 5. Chaque coin ne déclenche qu'une seule alerte, puis est oublié.
 
 ### Latence création on-chain → message Discord
@@ -59,7 +59,7 @@ python bot.py
 | `DISCORD_WEBHOOK_URL` | — | Webhook des alertes (obligatoire) |
 | `DISCORD_LOG_WEBHOOK_URL` | — | Webhook séparé pour les logs (optionnel) |
 | `PUBLIC_WS_URLS` | mainnet-beta | WebSocket(s) de détection, séparés par des virgules |
-| `DEV_BUY_MIN_SOL` / `DEV_BUY_MAX_SOL` | `70` / `80` | Fenêtre du dev-buy |
+| `DEV_BUY_MIN_SOL` / `DEV_BUY_MAX_SOL` | `71` / `78` | Fenêtre du dev-buy |
 | `DEV_BUY_MAX_AGE_SEC` | `3` | Délai max création → achat du dev pour compter comme « instantané » |
 | `DEV_BUY_REQUIRE_CREATOR_MATCH` | `true` | `true` = ne compter que les achats du wallet créateur ; `false` = prendre le 1er acheteur du coin |
 | `DEV_BUY_FAST_PATH` | `true` | Alerte immédiate si le dev-buy est dans la tx de création (sans attendre la fenêtre) |

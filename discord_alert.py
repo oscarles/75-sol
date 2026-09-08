@@ -1,4 +1,4 @@
-"""Envoi de l'alerte « dev-buy 70–80 SOL détecté » sur le webhook Discord."""
+"""Envoi de l'alerte « dev-buy 71–78 SOL détecté » sur le webhook Discord."""
 
 import asyncio
 import datetime as _dt
@@ -77,7 +77,7 @@ async def send_dev_buy_alert(
     )
 
     embed = {
-        "title": "🐳 Dev-buy 70–80 SOL détecté",
+        "title": "🐳 Dev-buy 71–78 SOL détecté",
         "color": 0x1ABC9C,
         "description": f"**{name}** ({symbol})\n`{mint}`",
         "fields": [

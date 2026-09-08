@@ -30,7 +30,7 @@ def _list(name: str, default: str) -> list[str]:
 
 
 # ── Discord ──────────────────────────────────────────────────────────────────
-# Webhook où partent les alertes « dev buy 70–80 SOL » (obligatoire).
+# Webhook où partent les alertes « dev buy 71–78 SOL » (obligatoire).
 DISCORD_WEBHOOK_URL     = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
 # Webhook séparé pour les logs de fonctionnement (optionnel — vide = console seule).
 DISCORD_LOG_WEBHOOK_URL = os.environ.get("DISCORD_LOG_WEBHOOK_URL", "").strip()
@@ -54,8 +54,8 @@ PUMPFUN_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 # À la création du coin, le dev (= le wallet créateur) doit acheter lui-même
 # entre DEV_BUY_MIN_SOL et DEV_BUY_MAX_SOL, « instantanément », c.-à-d. dans les
 # DEV_BUY_MAX_AGE_SEC secondes qui suivent le CreateEvent.
-DEV_BUY_MIN_SOL     = float(os.environ.get("DEV_BUY_MIN_SOL", 70.0))
-DEV_BUY_MAX_SOL     = float(os.environ.get("DEV_BUY_MAX_SOL", 80.0))
+DEV_BUY_MIN_SOL     = float(os.environ.get("DEV_BUY_MIN_SOL", 71.0))
+DEV_BUY_MAX_SOL     = float(os.environ.get("DEV_BUY_MAX_SOL", 78.0))
 DEV_BUY_MAX_AGE_SEC = float(os.environ.get("DEV_BUY_MAX_AGE_SEC", 3.0))
 
 # On additionne tous les achats du wallet créateur reçus dans la fenêtre
