@@ -102,3 +102,55 @@ TOKEN_TTL_SEC = float(os.environ.get("TOKEN_TTL_SEC", 60))    # on oublie un coi
 MAX_TRACKED   = int(os.environ.get("MAX_TRACKED", 20000))     # garde-fou mémoire
 EVAL_INTERVAL = float(os.environ.get("EVAL_INTERVAL", 0.5))   # s entre deux passes d'évaluation
 RECONNECT_DELAY = float(os.environ.get("RECONNECT_DELAY", 5))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STRATÉGIE "VENTE DU DEV" — achat/vente natif pump.fun/PAMM
+# ─────────────────────────────────────────────────────────────────────────────
+# Sécurité par défaut : tant que DRY_RUN=true, tout le pipeline tourne (détection,
+# sizing, martingale, alertes) mais AUCUNE transaction n'est réellement envoyée.
+# Ne passer à false qu'après avoir vérifié les alertes et fondé le wallet.
+DRY_RUN = os.environ.get("DRY_RUN", "true").strip().lower() in ("1", "true", "yes", "on")
+
+# Wallet de trading (obligatoire dès que DRY_RUN=false) — clé privée base58
+# (format Phantom/Solflare "Export private key"), JAMAIS commitée.
+BOT_PRIVATE_KEY = os.environ.get("BOT_PRIVATE_KEY", "").strip()
+
+# RPC pour l'ENVOI de transactions (le WS public de détection ci-dessus ne
+# suffit pas pour trader — un endpoint dédié Helius/QuickNode/Triton est requis).
+RPC_HTTP = os.environ.get("RPC_HTTP", "").strip()
+RPC_WS   = os.environ.get("RPC_WS", "").strip()
+RPC_HTTP_EXTRA_URLS = _list("RPC_HTTP_EXTRA_URLS", "")
+
+# Mise de base d'une position complète (100% = 2 achats de 50%), avant tout
+# multiplicateur martingale.
+BASE_POSITION_SOL = float(os.environ.get("BASE_POSITION_SOL", 0.15))
+
+# Combien de temps après une alerte "MATCH" (dev-buy 71-78 SOL) on continue de
+# surveiller le wallet du dev pour une vente déclenchant un achat.
+DEV_SELL_WATCH_TTL_SEC = float(os.environ.get("DEV_SELL_WATCH_TTL_SEC", 6 * 3600))
+
+# Sortie : take-profit / stop-loss en market cap USD.
+TP_MCAP_USD = float(os.environ.get("TP_MCAP_USD", 80_000))
+SL_MCAP_USD = float(os.environ.get("SL_MCAP_USD", 7_000))
+
+# Tolérance de slippage (fraction, ex. 0.90 = accepte jusqu'à 90% de dérive de
+# prix par rapport à la dernière lecture connue des réserves). SL/secours plus
+# large : la priorité est de sortir, pas d'optimiser le prix.
+SLIPPAGE_BUY_PCT      = float(os.environ.get("SLIPPAGE_BUY_PCT", 0.90))
+SLIPPAGE_SELL_PCT     = float(os.environ.get("SLIPPAGE_SELL_PCT", 0.30))
+SLIPPAGE_SELL_PCT_SL  = float(os.environ.get("SLIPPAGE_SELL_PCT_SL", 0.95))
+TOTAL_FEE_BPS         = int(os.environ.get("TOTAL_FEE_BPS", 100))
+
+# Compute budget / priority fees / tips Jito.
+COMPUTE_UNIT_LIMIT       = int(os.environ.get("COMPUTE_UNIT_LIMIT", 150_000))
+COMPUTE_UNIT_PRICE_BUY   = int(os.environ.get("COMPUTE_UNIT_PRICE_BUY", 1_000_000))
+COMPUTE_UNIT_PRICE_SELL  = int(os.environ.get("COMPUTE_UNIT_PRICE_SELL", 400_000))
+JITO_TIP_LAMPORTS_BUY    = int(os.environ.get("JITO_TIP_LAMPORTS_BUY", 500_000))
+JITO_TIP_LAMPORTS_SELL   = int(os.environ.get("JITO_TIP_LAMPORTS_SELL", 150_000))
+
+# Surveillance de position (market cap) + envoi/confirmation de transaction.
+MC_MONITOR_INTERVAL          = float(os.environ.get("MC_MONITOR_INTERVAL", 5))
+MC_UNKNOWN_TIMEOUT_SEC       = float(os.environ.get("MC_UNKNOWN_TIMEOUT_SEC", 120))
+TX_SPAM_RETRIES              = int(os.environ.get("TX_SPAM_RETRIES", 8))
+TX_SPAM_INTERVAL             = float(os.environ.get("TX_SPAM_INTERVAL", 0.4))
+NATIVE_CONFIRM_TIMEOUT_SEC   = float(os.environ.get("NATIVE_CONFIRM_TIMEOUT_SEC", 20))

@@ -6,7 +6,7 @@ import datetime as _dt
 import aiohttp
 
 from config import (
-    DISCORD_WEBHOOK_URL, DEV_BUY_MIN_SOL, DEV_BUY_MAX_SOL,
+    DISCORD_WEBHOOK_URL, DEV_BUY_MIN_SOL, DEV_BUY_MAX_SOL, DRY_RUN,
     JOKE_PING_ENABLED, JOKE_PING_USER_ID, JOKE_PING_NAME, JOKE_GIF_URL,
 )
 
@@ -119,3 +119,78 @@ async def send_dev_buy_alert(
         payload["allowed_mentions"] = {"parse": ["users"]}
     async with aiohttp.ClientSession() as session:
         await _post(session, payload)
+
+
+def _dry_run_prefix() -> str:
+    return "🧪 DRY_RUN — " if DRY_RUN else ""
+
+
+async def _send_embed(embed: dict) -> None:
+    if not DISCORD_WEBHOOK_URL:
+        print("[Discord] DISCORD_WEBHOOK_URL vide — alerte non envoyée")
+        return
+    embed.setdefault("footer", {"text": "75 SOL — stratégie vente du dev"})
+    embed.setdefault("timestamp", _dt.datetime.now(_dt.timezone.utc).isoformat())
+    payload = {"username": "75 SOL Strategy", "embeds": [embed]}
+    async with aiohttp.ClientSession() as session:
+        await _post(session, payload)
+
+
+async def send_dev_sell_buy_alert(
+    mint: str, name: str, buy_number: int, size_sol: float, multiplier: float,
+    mc_usd: float, sig: str,
+) -> None:
+    """Achat déclenché par la Nème vente du dev (1 ou 2)."""
+    mult_line = "" if multiplier == 1.0 else f" (×{multiplier:.3f} martingale)"
+    embed = {
+        "title": f"{_dry_run_prefix()}🎯 Achat {buy_number}/2 — vente du dev détectée",
+        "color": 0x3498DB,
+        "description": f"**{name}**\n`{mint}`",
+        "fields": [
+            {"name": "💰 Taille", "value": f"**{size_sol:.4f} SOL**{mult_line}", "inline": True},
+            {"name": "📊 Market cap", "value": f"${mc_usd:,.0f}", "inline": True},
+            {"name": "🔗 Tx", "value": f"[solscan](https://solscan.io/tx/{sig})" if sig else "—", "inline": True},
+        ],
+    }
+    await _send_embed(embed)
+
+
+async def send_take_profit_alert(mint: str, name: str, mc_usd: float, sig: str, next_multiplier: float) -> None:
+    embed = {
+        "title": f"{_dry_run_prefix()}✅ Take-profit atteint — vente 100%",
+        "color": 0x2ECC71,
+        "description": f"**{name}**\n`{mint}`",
+        "fields": [
+            {"name": "📊 Market cap de sortie", "value": f"${mc_usd:,.0f}", "inline": True},
+            {"name": "🔗 Tx", "value": f"[solscan](https://solscan.io/tx/{sig})" if sig else "—", "inline": True},
+            {"name": "🔁 Prochain multiplicateur", "value": "×1.0 (série de stop-loss cassée)", "inline": False},
+        ],
+    }
+    await _send_embed(embed)
+
+
+async def send_stop_loss_alert(mint: str, name: str, mc_usd: float, sig: str, next_multiplier: float, reason: str = "sl") -> None:
+    title = "🛑 Stop-loss atteint — vente d'urgence" if reason == "sl" else "🆘 Vente de secours — market cap illisible"
+    embed = {
+        "title": f"{_dry_run_prefix()}{title}",
+        "color": 0xE74C3C,
+        "description": f"**{name}**\n`{mint}`",
+        "fields": [
+            {"name": "📊 Market cap de sortie", "value": f"${mc_usd:,.0f}" if mc_usd else "inconnue", "inline": True},
+            {"name": "🔗 Tx", "value": f"[solscan](https://solscan.io/tx/{sig})" if sig else "—", "inline": True},
+            {"name": "🔁 Prochain multiplicateur", "value": f"×{next_multiplier:.3f}", "inline": False},
+        ],
+    }
+    await _send_embed(embed)
+
+
+async def send_execution_failed_alert(mint: str, name: str, action: str, error: str) -> None:
+    embed = {
+        "title": f"{_dry_run_prefix()}❌ Échec — {action}",
+        "color": 0x95A5A6,
+        "description": f"**{name}**\n`{mint}`",
+        "fields": [
+            {"name": "Erreur", "value": (error or "inconnue")[:900], "inline": False},
+        ],
+    }
+    await _send_embed(embed)

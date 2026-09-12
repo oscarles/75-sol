@@ -29,7 +29,12 @@ from dataclasses import dataclass
 
 import aiohttp
 import websockets
+from solana.rpc.async_api import AsyncClient
 
+import config
+import positions_store
+import strategy
+import wallet_ctx
 from config import (
     DISCORD_WEBHOOK_URL,
     DISCORD_LOG_WEBHOOK_URL,
@@ -43,6 +48,7 @@ from config import (
     DEV_BUY_FAST_PATH,
     DEV_SKIP_IF_MULTI_TOKEN,
     DEV_MAX_TOKENS_BEFORE_SKIP,
+    DEV_SELL_WATCH_TTL_SEC,
     TOKEN_TTL_SEC,
     MAX_TRACKED,
     EVAL_INTERVAL,
@@ -74,6 +80,7 @@ class Tracked:
     dev_buy_in_create_tx: bool = False  # dev-buy vu dans la tx de création
     alerted:         bool = False
     done:            bool = False   # évalué (alerté ou rejeté) → à retirer
+    dev_sell_watch_until: float = 0.0  # si alerted : surveille la vente du dev jusqu'à ce timestamp
 
 
 class State:
@@ -111,7 +118,20 @@ def _already_seen(sig: str) -> bool:
 
 def _handle_trade(state: State, tr, sig: str, now: float) -> None:
     tok = state.tokens.get(tr.mint)
-    if tok is None or tok.done:
+    if tok is None:
+        return
+
+    # Coin déjà matché (dev-buy 71-78 SOL) : on ne surveille plus sa fenêtre de
+    # création (déjà tranchée) mais on continue de guetter une vente du dev,
+    # qui déclenche la stratégie d'achat — indépendant de `tok.done` ci-dessous.
+    if tok.alerted:
+        if (not tr.is_buy and tr.user == tok.creator
+                and now <= tok.dev_sell_watch_until
+                and not positions_store.is_closed(tr.mint)):
+            asyncio.create_task(strategy.on_dev_sell(tr, tok))
+        return
+
+    if tok.done:
         return
     if not tr.is_buy:
         return
@@ -254,6 +274,7 @@ async def _finalize(tok: "Tracked", *, fast: bool = False) -> None:
     dev = tok.dev_wallet or tok.creator
     if lo <= sol <= hi:
         tok.alerted = tok.done = True
+        tok.dev_sell_watch_until = time.time() + DEV_SELL_WATCH_TTL_SEC
         tag = "MATCH⚡" if fast else "MATCH"
         log(f"[✓] {tag} : {tok.name} ({tok.symbol}) | dev-buy {sol:.2f} SOL "
             f"({tok.dev_buy_count} ordre(s)) en {tok.first_buy_age:.1f}s | "
@@ -292,8 +313,16 @@ async def expire_loop(state: State) -> None:
     while True:
         await asyncio.sleep(10)
         now = time.time()
-        for m in [m for m, t in state.tokens.items()
-                  if t.done or now - t.created_at > TOKEN_TTL_SEC]:
+        to_drop = []
+        for m, t in state.tokens.items():
+            if t.alerted:
+                # Coin matché : on le garde tant que la vente du dev peut encore
+                # se produire ET que sa position (si ouverte) n'est pas clôturée.
+                if now > t.dev_sell_watch_until or positions_store.is_closed(m):
+                    to_drop.append(m)
+            elif t.done or now - t.created_at > TOKEN_TTL_SEC:
+                to_drop.append(m)
+        for m in to_drop:
             state.drop(m)
 
 
@@ -305,7 +334,9 @@ async def price_loop() -> None:
                 SOL_PRICE = await get_sol_price_usd(session)
             except Exception:
                 pass
-            await asyncio.sleep(300)
+            # Aligné sur le TTL de sol_price.py (60s) : des seuils de market cap
+            # (TP/SL) veulent un prix SOL/USD frais, pas jusqu'à 5 min de retard.
+            await asyncio.sleep(60)
 
 
 async def heartbeat_loop(state: State) -> None:
@@ -330,6 +361,8 @@ async def main() -> None:
     if not DISCORD_LOG_WEBHOOK_URL:
         safe_print("[i] DISCORD_LOG_WEBHOOK_URL non défini — logs en console uniquement.")
 
+    _init_strategy()
+
     state = State()
     await asyncio.gather(
         log_flush_loop(),
@@ -339,6 +372,29 @@ async def main() -> None:
         expire_loop(state),
         heartbeat_loop(state),
     )
+
+
+def _init_strategy() -> None:
+    """Câble la stratégie "vente du dev" (achat/vente natif) si un wallet est
+    configuré. Sans BOT_PRIVATE_KEY, le scanner tourne en détection seule comme
+    avant — aucune régression du comportement existant."""
+    if config.DRY_RUN:
+        log("[STRATEGIE] DRY_RUN actif — aucune transaction ne sera réellement envoyée.")
+    if not config.BOT_PRIVATE_KEY:
+        log("[STRATEGIE] BOT_PRIVATE_KEY non défini — stratégie vente-du-dev désactivée (détection seule).")
+        return
+    if not config.RPC_HTTP:
+        log("[STRATEGIE] RPC_HTTP non défini — stratégie vente-du-dev désactivée (détection seule).")
+        return
+
+    ctx = wallet_ctx.load_wallet(config.BOT_PRIVATE_KEY)
+    client = AsyncClient(config.RPC_HTTP)
+    extra_clients = [AsyncClient(url) for url in config.RPC_HTTP_EXTRA_URLS]
+    strategy.init(client, extra_clients, ctx, config.RPC_WS)
+    strategy.resume_open_positions()
+    log(f"[STRATEGIE] Active — wallet {str(ctx.wallet)[:6]}… | "
+        f"mise de base {config.BASE_POSITION_SOL:g} SOL | "
+        f"TP ${config.TP_MCAP_USD:,.0f} | SL ${config.SL_MCAP_USD:,.0f}")
 
 
 if __name__ == "__main__":

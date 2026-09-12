@@ -10,7 +10,7 @@ import aiohttp
 
 _price: float = 170.0
 _last: float = 0.0
-_TTL = 300.0
+_TTL = 60.0  # réduit de 300s : des seuils de market cap (TP/SL) veulent un prix SOL frais
 
 
 async def get_sol_price_usd(session: aiohttp.ClientSession) -> float:
@@ -25,4 +25,10 @@ async def get_sol_price_usd(session: aiohttp.ClientSession) -> float:
         _last = time.time()
     except Exception:
         pass
+    return _price
+
+
+def get_cached() -> float:
+    """Dernier prix connu, sans I/O — pour un calcul de market cap synchrone
+    (ex. strategy.py) qui n'a pas de session aiohttp sous la main."""
     return _price
